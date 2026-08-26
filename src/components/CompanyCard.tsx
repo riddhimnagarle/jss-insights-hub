@@ -20,7 +20,7 @@ export const CompanyCard = memo(function CompanyCard({
 }) {
   const navigate = useNavigate();
   const { selectCompany } = useCompany();
-  const color = CATEGORY_COLORS[company.company_type] ?? CATEGORY_COLORS.Regular;
+  const color = CATEGORY_COLORS[company.company_type] ?? CATEGORY_COLORS["Regular"];
   const negativeGrowth = company.yoy_growth_rate.trim().startsWith("-");
 
   const handleClick = () => {
