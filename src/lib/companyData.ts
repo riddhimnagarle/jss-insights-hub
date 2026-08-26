@@ -107,18 +107,18 @@ export function normalizeCompanySummary(
   const s = asRecord(short_json);
   return {
     company_id,
-    name: asString(s.name),
-    short_name: asString(s.short_name),
-    logo_url: asString(s.logo_url),
-    category: asString(s.category),
-    company_type: asString(s.company_type) || "Regular",
-    incorporation_year: asString(s.incorporation_year),
-    employee_size: asString(s.employee_size),
-    headquarters_address: asString(s.headquarters_address),
-    operating_countries: asString(s.operating_countries),
-    office_locations: asString(s.office_locations),
-    yoy_growth_rate: asString(s.yoy_growth_rate),
-    website_url: asString(s.website_url),
+    name: asString(s["name"]),
+    short_name: asString(s["short_name"]),
+    logo_url: asString(s["logo_url"]),
+    category: asString(s["category"]),
+    company_type: asString(s["company_type"]) || "Regular",
+    incorporation_year: asString(s["incorporation_year"]),
+    employee_size: asString(s["employee_size"]),
+    headquarters_address: asString(s["headquarters_address"]),
+    operating_countries: asString(s["operating_countries"]),
+    office_locations: asString(s["office_locations"]),
+    yoy_growth_rate: asString(s["yoy_growth_rate"]),
+    website_url: asString(s["website_url"]),
   };
 }
 
@@ -139,12 +139,12 @@ export function normalizeDashboardSkills(skillLevels: unknown): DashboardSkill[]
   return skillLevels
     .map((raw, index) => {
       const s = asRecord(raw);
-      const level = Number(s.required_level) || 0;
+      const level = Number(s["required_level"]) || 0;
       return {
-        skill_set_id: Number(s.skill_set_id) || index + 1,
-        skill_set_name: asString(s.skill_set_name) || `Skill ${index + 1}`,
+        skill_set_id: Number(s["skill_set_id"]) || index + 1,
+        skill_set_name: asString(s["skill_set_name"]) || `Skill ${index + 1}`,
         required_level: level,
-        required_proficiency: asString(s.required_proficiency),
+        required_proficiency: asString(s["required_proficiency"]),
         difficulty: scoreToDifficulty(level),
         bloom: proficiencyToBloom(level),
         criticality: scoreToCriticality(level),
