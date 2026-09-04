@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CompanyCard } from "@/components/CompanyCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { COLLEGE_NAME, COLLEGE_SHORT } from "@/config/college";
-import { COMPANY_SUMMARIES } from "@/context/CompanyContext";
+import { useCompanies } from "@/lib/companyApi";
 import { CATEGORY_COLORS } from "@/lib/companyData";
 
 const TITLE = `${COLLEGE_NAME} Companies Research & Placement Analytics Portal`;
@@ -32,12 +32,7 @@ function Index() {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [tier, setTier] = useState<(typeof TIERS)[number]>("All");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 250);
-    return () => clearTimeout(t);
-  }, []);
+  const { data: companies = [], isLoading, isError, refetch } = useCompanies();
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query), 200);
@@ -45,18 +40,16 @@ function Index() {
   }, [query]);
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { All: COMPANY_SUMMARIES.length };
+    const map: Record<string, number> = { All: companies.length };
     for (const tierName of TIERS.slice(1)) {
-      map[tierName] = COMPANY_SUMMARIES.filter(
-        (c) => c.company_type === tierName,
-      ).length;
+      map[tierName] = companies.filter((c) => c.company_type === tierName).length;
     }
     return map;
-  }, []);
+  }, [companies]);
 
   const results = useMemo(() => {
     const q = debounced.trim().toLowerCase();
-    return COMPANY_SUMMARIES.filter((c) => {
+    return companies.filter((c) => {
       const matchesTier = tier === "All" || c.company_type === tier;
       const matchesQuery =
         !q ||
@@ -65,7 +58,7 @@ function Index() {
           .includes(q);
       return matchesTier && matchesQuery;
     });
-  }, [debounced, tier]);
+  }, [companies, debounced, tier]);
 
   const reset = () => {
     setQuery("");
@@ -144,11 +137,25 @@ function Index() {
           })}
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-56 rounded-xl" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="mt-10 rounded-xl border border-border bg-card p-10 text-center">
+            <h2 className="text-lg font-semibold text-foreground">Could not load companies</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Check the Supabase configuration and try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              Retry
+            </button>
           </div>
         ) : results.length === 0 ? (
           <div className="mt-10 rounded-xl border border-border bg-card p-10 text-center">

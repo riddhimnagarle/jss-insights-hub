@@ -8,15 +8,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { SEED_COMPANIES } from "@/data/seedCompanies";
-import {
-  normalizeCompanyProfile,
-  normalizeCompanySummary,
-  normalizeDashboardSkills,
-  type CompanyProfile,
-  type CompanySummary,
-  type DashboardSkill,
-} from "@/lib/companyData";
+import { useCompanyProfile, useCompanies, useCompanySkills } from "@/lib/companyApi";
+import { type CompanyProfile, type CompanySummary, type DashboardSkill } from "@/lib/companyData";
 
 export const STORAGE_KEY = "selected-company";
 
@@ -31,16 +24,19 @@ interface CompanyContextValue {
   summary: CompanySummary | null;
   profile: CompanyProfile | null;
   skills: DashboardSkill[];
+  skillTopics: Record<number, string[]>;
   hydrated: boolean;
   selectCompany: (company: SelectedCompany) => void;
   clearCompany: () => void;
+  profileLoading: boolean;
+  profileError: Error | null;
+  retryProfile: () => void;
+  skillsLoading: boolean;
+  skillsError: Error | null;
+  retrySkills: () => void;
 }
 
 const CompanyContext = createContext<CompanyContextValue | null>(null);
-
-export const COMPANY_SUMMARIES: CompanySummary[] = SEED_COMPANIES.map((row) =>
-  normalizeCompanySummary(row.short_json, row.company_id),
-);
 
 function loadFromStorage(): SelectedCompany | null {
   if (typeof window === "undefined") return null;
@@ -48,15 +44,11 @@ function loadFromStorage(): SelectedCompany | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SelectedCompany>;
-    const match = SEED_COMPANIES.find(
-      (row) => row.company_id === Number(parsed.companyId),
-    );
-    if (!match) return null;
-    const summary = normalizeCompanySummary(match.short_json, match.company_id);
+    if (!Number.isFinite(Number(parsed.companyId))) return null;
     return {
-      companyId: summary.company_id,
-      companyName: summary.name,
-      logoUrl: summary.logo_url,
+      companyId: Number(parsed.companyId),
+      companyName: String(parsed.companyName ?? ""),
+      logoUrl: String(parsed.logoUrl ?? ""),
     };
   } catch {
     return null;
@@ -66,6 +58,9 @@ function loadFromStorage(): SelectedCompany | null {
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<SelectedCompany | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const companiesQuery = useCompanies();
+  const profileQuery = useCompanyProfile(selected?.companyId ?? null);
+  const skillsQuery = useCompanySkills(selected?.companyId ?? null);
 
   useEffect(() => {
     setSelected(loadFromStorage());
@@ -91,19 +86,39 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<CompanyContextValue>(() => {
-    const row = selected
-      ? SEED_COMPANIES.find((r) => r.company_id === selected.companyId)
-      : undefined;
+    const summary =
+      companiesQuery.data?.find((company) => company.company_id === selected?.companyId) ?? null;
     return {
       selected,
       hydrated,
-      summary: row ? normalizeCompanySummary(row.short_json, row.company_id) : null,
-      profile: row ? normalizeCompanyProfile(row.full_json, row.short_json) : null,
-      skills: row ? normalizeDashboardSkills(row.skill_levels) : [],
+      summary,
+      profile: profileQuery.data ?? null,
+      skills: skillsQuery.data?.skills ?? [],
+      skillTopics: skillsQuery.data?.topics ?? {},
       selectCompany,
       clearCompany,
+      profileLoading: profileQuery.isLoading,
+      profileError: profileQuery.error,
+      retryProfile: profileQuery.refetch,
+      skillsLoading: skillsQuery.isLoading,
+      skillsError: skillsQuery.error,
+      retrySkills: skillsQuery.refetch,
     };
-  }, [selected, hydrated, selectCompany, clearCompany]);
+  }, [
+    selected,
+    hydrated,
+    companiesQuery.data,
+    profileQuery.data,
+    profileQuery.isLoading,
+    profileQuery.error,
+    profileQuery.refetch,
+    skillsQuery.data,
+    skillsQuery.isLoading,
+    skillsQuery.error,
+    skillsQuery.refetch,
+    selectCompany,
+    clearCompany,
+  ]);
 
   return <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>;
 }

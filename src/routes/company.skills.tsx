@@ -5,7 +5,6 @@ import { memo, useEffect, useState } from "react";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { COLLEGE_SHORT } from "@/config/college";
 import { useCompany } from "@/context/CompanyContext";
-import { SKILL_TOPICS } from "@/data/skillTopics";
 import { BLOOM_META, type DashboardSkill } from "@/lib/companyData";
 
 export const Route = createFileRoute("/company/skills")({
@@ -47,10 +46,15 @@ const CRITICALITY_META = [
   },
 ] as const;
 
-const SkillCard = memo(function SkillCard({ skill }: { skill: DashboardSkill }) {
+const SkillCard = memo(function SkillCard({
+  skill,
+  topics,
+}: {
+  skill: DashboardSkill;
+  topics: string[];
+}) {
   const [open, setOpen] = useState(false);
   const bloom = BLOOM_META[skill.bloom];
-  const topics = SKILL_TOPICS[skill.skill_set_id] ?? [];
   const criticality = CRITICALITY_META.find((c) => c.key === skill.criticality);
 
   return (
@@ -66,9 +70,7 @@ const SkillCard = memo(function SkillCard({ skill }: { skill: DashboardSkill }) 
           >
             {skill.bloom} · {bloom.label}
           </span>
-          <span className="text-sm font-semibold text-foreground">
-            {skill.required_level}/10
-          </span>
+          <span className="text-sm font-semibold text-foreground">{skill.required_level}/10</span>
         </div>
       </div>
 
@@ -131,14 +133,32 @@ const SkillCard = memo(function SkillCard({ skill }: { skill: DashboardSkill }) 
 });
 
 function SkillIntelligence() {
-  const { summary, skills, hydrated } = useCompany();
+  const { summary, skills, skillTopics, hydrated, skillsLoading, skillsError, retrySkills } =
+    useCompany();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (hydrated && !summary) navigate({ to: "/" });
-  }, [hydrated, summary, navigate]);
+    if (hydrated && !summary && !skillsLoading && !skillsError) navigate({ to: "/" });
+  }, [hydrated, summary, skillsLoading, skillsError, navigate]);
 
-  if (!summary) return null;
+  if (skillsError) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        <p>Could not load skill intelligence.</p>
+        <button
+          type="button"
+          onClick={() => void retrySkills()}
+          className="mt-3 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (skillsLoading || !summary) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading skill data…</div>;
+  }
 
   const sorted = [...skills].sort((a, b) => b.required_level - a.required_level);
 
@@ -157,9 +177,7 @@ function SkillIntelligence() {
       </header>
 
       <section className="mt-5" aria-label="Bloom levels">
-        <h2 className="font-heading text-sm font-semibold text-foreground">
-          Bloom levels
-        </h2>
+        <h2 className="font-heading text-sm font-semibold text-foreground">Bloom levels</h2>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
           {(Object.keys(BLOOM_META) as Array<keyof typeof BLOOM_META>).map((key) => (
             <div
@@ -167,10 +185,7 @@ function SkillIntelligence() {
               className="rounded-lg border border-border p-2.5 text-center"
               style={{ backgroundColor: `${BLOOM_META[key].color}12` }}
             >
-              <p
-                className="text-sm font-semibold"
-                style={{ color: BLOOM_META[key].color }}
-              >
+              <p className="text-sm font-semibold" style={{ color: BLOOM_META[key].color }}>
                 {key}
               </p>
               <p className="text-xs text-muted-foreground">{BLOOM_META[key].label}</p>
@@ -180,9 +195,7 @@ function SkillIntelligence() {
       </section>
 
       <section className="mt-5" aria-label="Criticality">
-        <h2 className="font-heading text-sm font-semibold text-foreground">
-          Criticality
-        </h2>
+        <h2 className="font-heading text-sm font-semibold text-foreground">Criticality</h2>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {CRITICALITY_META.map((item) => (
             <div key={item.key} className="rounded-lg border border-border bg-card p-3">
@@ -197,7 +210,11 @@ function SkillIntelligence() {
 
       <section className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2" aria-label="Skills">
         {sorted.map((skill) => (
-          <SkillCard key={skill.skill_set_id} skill={skill} />
+          <SkillCard
+            key={skill.skill_set_id}
+            skill={skill}
+            topics={skillTopics[skill.skill_set_id] ?? []}
+          />
         ))}
       </section>
     </div>

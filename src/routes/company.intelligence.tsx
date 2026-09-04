@@ -106,9 +106,7 @@ function renderValue(field: IntelligenceField) {
 function FieldRow({ field }: { field: IntelligenceField }) {
   return (
     <div className="flex flex-col gap-1 border-b border-border py-3 last:border-b-0 sm:flex-row sm:gap-4">
-      <dt className="text-sm font-medium text-muted-foreground sm:w-1/3">
-        {field.label}
-      </dt>
+      <dt className="text-sm font-medium text-muted-foreground sm:w-1/3">{field.label}</dt>
       <dd className="text-sm text-foreground sm:w-2/3">{renderValue(field)}</dd>
     </div>
   );
@@ -153,7 +151,7 @@ const SectionCard = memo(function SectionCard({
 });
 
 function CompanyIntelligence() {
-  const { summary, profile, hydrated } = useCompany();
+  const { summary, profile, hydrated, profileLoading, profileError, retryProfile } = useCompany();
   const navigate = useNavigate();
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -161,8 +159,8 @@ function CompanyIntelligence() {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
-    if (hydrated && !summary) navigate({ to: "/" });
-  }, [hydrated, summary, navigate]);
+    if (hydrated && !summary && !profileLoading && !profileError) navigate({ to: "/" });
+  }, [hydrated, summary, profileLoading, profileError, navigate]);
 
   const sections = useMemo(() => buildIntelligenceSections(profile), [profile]);
 
@@ -200,10 +198,23 @@ function CompanyIntelligence() {
     }, 700);
   };
 
-  if (!summary || !profile) {
+  if (profileError) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">Loading company data…</div>
+      <div className="p-6 text-sm text-muted-foreground">
+        <p>Could not load company intelligence.</p>
+        <button
+          type="button"
+          onClick={() => void retryProfile()}
+          className="mt-3 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground"
+        >
+          Retry
+        </button>
+      </div>
     );
+  }
+
+  if (profileLoading || !summary || !profile) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading company data…</div>;
   }
 
   return (
